@@ -1,6 +1,8 @@
 <template>
-  <section class="messages" tabindex="0" aria-live="polite">
-    <div class="empty" v-if="messages.length === 0">Напишите сообщение — и модель ответит.</div>
+  <section ref="messagesRef" class="messages" tabindex="0" aria-live="polite">
+    <div class="empty" v-if="messages.length === 0">
+      Напишите сообщение — и модель ответит.
+    </div>
     <div v-for="(m, idx) in messages" :key="idx" class="msg">
       <div :class="roleIsUser(m) ? 'user' : 'model'">
         <strong>{{ roleIsUser(m) ? 'Вы' : 'Модель' }}:</strong>
@@ -16,7 +18,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watch, nextTick } from 'vue';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
@@ -31,6 +33,7 @@ const props = defineProps({
   }
 });
 
+const messagesRef = ref(null);
 const roleIsUser = m => m.role === 'user';
 
 const isConnecting = computed(() => {
@@ -39,6 +42,32 @@ const isConnecting = computed(() => {
   const lastMsg = props.messages[props.messages.length - 1];
   return lastMsg.role === 'model' && !lastMsg.content;
 });
+
+function scrollToBottom(force = false) {
+  nextTick(() => {
+    const el = messagesRef.value;
+    if (!el) return;
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    if (force || isNearBottom) {
+      el.scrollTop = el.scrollHeight;
+    }
+  });
+}
+
+watch(
+  () => props.messages.length,
+  () => scrollToBottom(true)
+);
+
+watch(
+  () => props.messages[props.messages.length - 1]?.content,
+  () => scrollToBottom(false)
+);
+
+watch(
+  () => props.streaming,
+  () => scrollToBottom(false)
+);
 
 marked.setOptions({
   gfm: true,

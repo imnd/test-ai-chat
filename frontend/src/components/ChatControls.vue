@@ -4,13 +4,17 @@
         class="prompt"
         ref="inputRef"
         v-model="inputText"
+        @input="autoResize"
         @keydown.escape.prevent="stop()"
         @keydown.enter.exact.prevent="send()"
-        placeholder="Напишите сообщение — и модель ответит."
+        placeholder="Сообщение"
         aria-label="Сообщение"
+        rows="1"
     />
-    <button type="submit">Отправить</button>
-    <button type="button" @click="stop()" :disabled="!streaming">Стоп</button>
+    <div class="controls-actions">
+      <button type="submit" class="btn-send">Отправить</button>
+      <button type="button" class="btn-stop" @click="stop()" :disabled="!streaming">Стоп</button>
+    </div>
   </form>
 </template>
 
@@ -45,6 +49,13 @@ const emit = defineEmits(['send', 'stop']);
 
 const inputRef = ref(null);
 let evtSource = null;
+
+function autoResize() {
+  const el = inputRef.value;
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+}
 
 function append(role, content) {
   props.messages.push({role, content});
@@ -297,6 +308,9 @@ async function send() {
   const userMsg = inputText.value.trim();
   append('user', userMsg);
   inputText.value = '';
+  if (inputRef.value) {
+    inputRef.value.style.height = 'auto';
+  }
   error.value = '';
 
   // Сбор всей истории диалога в рамках сессии с маппингом роли model -> assistant

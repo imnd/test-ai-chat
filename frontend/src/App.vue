@@ -27,16 +27,16 @@
       </button>
     </header>
 
+    <ChatMessages
+      :messages="messages"
+      :streaming="streaming"
+    />
+
     <ChatControls
       ref="controlsRef"
       :messages="messages"
       v-model:streaming="streaming"
       v-model:error="error"
-    />
-
-    <ChatMessages
-      :messages="messages"
-      :streaming="streaming"
     />
 
     <footer v-if="error" class="status-footer" role="alert" aria-live="assertive">
