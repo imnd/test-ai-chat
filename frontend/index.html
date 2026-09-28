@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="ru">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI Chat</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    :root {
+      font-family: system-ui, Segoe UI, Roboto, Arial
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      gap: 12px
+    }
+
+    .messages {
+      flex: 1;
+      overflow: auto;
+      border: 1px solid #ddd;
+      padding: 12px;
+      border-radius: 8px
+    }
+
+    .msg {
+      margin-bottom: 12px
+    }
+
+    .user {
+      font-weight: 600
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #ccc
+    }
+
+    button {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 0;
+      background: #0366d6;
+      color: #fff
+    }
+
+    button:focus,
+    input:focus {
+      outline: none
+    }
+
+    .status {
+      font-size: 13px;
+      color: #666
+    }
+
+    @media (max-width:600px) {
+      main {
+        padding: 8px
+      }
+    }
+  </style>
+
+</head>
+
+<body>
+  <main id="app">
+    <header>
+      <h1>AI Chat</h1>
+    </header>
+
+    <section class="messages" tabindex="0" aria-live="polite">
+      <template v-if="messages.length===0">
+        <div class="empty">Напишите сообщение — и модель ответит.</div>
+      </template>
+      <div v-for="(m,idx) in messages" :key="idx" class="msg">
+        <div :class="m.role==='user'?'user':'model'"><strong>{{m.role==='user'?'Вы':'Модель'}}:</strong></div>
+        <div v-html="m.content"></div>
+      </div>
+      <div v-if="streaming" class="status">Модель печатает…</div>
+    </section>
+
+    <form class="controls" @submit.prevent="send()">
+      <input ref="input" v-model="inputText" @keydown.escape.prevent="stop()" @keydown.enter.exact.prevent="send()"
+        type="text" placeholder="Сообщение" aria-label="Сообщение" />
+      <button type="submit">Отправить</button>
+      <button type="button" @click="stop()" :disabled="!streaming">Стоп</button>
+    </form>
+
+    <footer class="status"><span v-if="error" style="color:#b00">{{error}}</span></footer>
+  </main>
+
+  <script>
+    const { createApp, ref, onMounted } = Vue;
+
+    createApp({
+      setup() {
+        const messages = ref([]);
+        const inputText = ref('');
+        const streaming = ref(false);
+        const error = ref('');
+        let evtSource = null;
+
+        function append(role, content) {
+          messages.value.push({ role, content });
+        }
+
+        async function send() {
+          if (!inputText.value.trim()) return;
+          append('user', escapeHtml(inputText.value));
+          const userMsg = inputText.value;
+          inputText.value = '';
+          error.value = '';
+
+          // Start streaming from server
+          streaming.value = true;
+          const payload = { messages: [{ role: 'user', content: userMsg }] };
+
+          evtSource = new EventSourcePolyfill('/api/chat', payload);
+          append('model', '');
+          const modelIdx = messages.value.length - 1;
+
+          evtSource.onmessage = (e) => {
+            try {
+              const chunk = JSON.parse(e.data);
+              messages.value[modelIdx].content += escapeHtml(chunk);
+            } catch (err) { }
+          };
+          evtSource.onopen = () => { };
+          evtSource.onerror = (ev) => {
+            error.value = 'Ошибка сети или сервер недоступен.';
+            streaming.value = false;
+            evtSource.close && evtSource.close();
+          };
+          evtSource.on('done', () => { streaming.value = false; evtSource.close && evtSource.close(); });
+        }
+
+        function stop() {
+          if (evtSource && evtSource.close) evtSource.close();
+          streaming.value = false;
+        }
+
+        function escapeHtml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+        // Minimal EventSource polyfill that sends POST then reads text lines
+        function EventSourcePolyfill(url, payload) {
+          let controller = new AbortController();
+          const es = {};
+          es.onmessage = null; es.onerror = null; es.onopen = null; es._events = {};
+          es.on = function (name, fn) { es._events[name] = fn };
+          fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: controller.signal })
+            .then(resp => {
+              if (!resp.ok) throw new Error('Upstream error ' + resp.status);
+              const reader = resp.body.getReader();
+              const decoder = new TextDecoder();
+              let buf = '';
+              es.onopen && es.onopen();
+              function read() {
+                reader.read().then(({ done, value }) => {
+                  if (done) { es._events['done'] && es._events['done'](); return; }
+                  buf += decoder.decode(value, { stream: true });
+                  let parts = buf.split('\n\n');
+                  buf = parts.pop();
+                  for (let p of parts) {
+                    if (p.startsWith('event:')) {
+                      const ev = p.split('\n')[0].slice(6).trim();
+                      const dline = p.split('\n').slice(1).join('\n');
+                      const data = dline.replace(/^data:\s*/, '');
+                      if (ev === 'done') es._events['done'] && es._events['done']();
+                      else if (es['on' + ev]) es['on' + ev](data);
+                      continue;
+                    }
+                    const m = p.replace(/^data:\s*/, '');
+                    es.onmessage && es.onmessage({ data: m });
+                  }
+                  read();
+                }).catch(err => { es.onerror && es.onerror(err); });
+              }
+              read();
+            }).catch(err => { es.onerror && es.onerror(err); });
+
+          es.close = () => controller.abort();
+          return es;
+        }
+
+        onMounted(() => { document.querySelector('input').focus(); });
+
+        return { messages, inputText, send, stop, streaming, error };
+      }
+    }).mount('#app');
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "ai-chat-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "serve": "serve -s . -l 3001"
+  },
+  "devDependencies": {
+    "serve": "^14.0.1"
+  }
+}
