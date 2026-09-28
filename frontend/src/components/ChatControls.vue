@@ -181,14 +181,23 @@ function EventSourcePolyfill(url, payload) {
 }
 
 async function send() {
-  const userMsg = inputText.value;
+  if (!inputText.value || !inputText.value.trim()) return;
+  const userMsg = inputText.value.trim();
   append('user', userMsg);
   inputText.value = '';
   error.value = '';
 
+  // Сбор всей истории диалога в рамках сессии с маппингом роли model -> assistant
+  const history = props.messages
+    .filter((m) => m.content && m.content.trim())
+    .map((m) => ({
+      role: m.role === 'model' ? 'assistant' : 'user',
+      content: m.content
+    }));
+
   // Запуск стриминга с сервера
   streaming.value = true;
-  const payload = {messages: [{role: 'user', content: userMsg}]};
+  const payload = { messages: history };
 
   evtSource = new EventSourcePolyfill(`${API_BASE}/chat`, payload);
   append('model', '');
