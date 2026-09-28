@@ -4,32 +4,14 @@
       <h1>AI Chat</h1>
     </header>
 
-    <section class="messages" tabindex="0" aria-live="polite">
-      <template v-if="messages.length === 0">
-        <div class="empty">Напишите сообщение — и модель ответит.</div>
-      </template>
-      <div v-for="(m, idx) in messages" :key="idx" class="msg">
-        <div :class="m.role === 'user' ? 'user' : 'model'">
-          <strong>{{ m.role === 'user' ? 'Вы' : 'Модель' }}:</strong>
-        </div>
-        <div v-html="m.content"></div>
-      </div>
-      <div v-if="streaming" class="status">Модель печатает…</div>
-    </section>
+    <ChatMessages :messages="messages" :streaming="streaming" />
 
-    <form class="controls" @submit.prevent="send()">
-      <input
-        ref="inputRef"
-        v-model="inputText"
-        @keydown.escape.prevent="stop()"
-        @keydown.enter.exact.prevent="send()"
-        type="text"
-        placeholder="Сообщение"
-        aria-label="Сообщение"
-      />
-      <button type="submit">Отправить</button>
-      <button type="button" @click="stop()" :disabled="!streaming">Стоп</button>
-    </form>
+    <ChatControls
+      v-model="inputText"
+      :streaming="streaming"
+      @send="send"
+      @stop="stop"
+    />
 
     <footer class="status">
       <span v-if="error" style="color: #b00">{{ error }}</span>
@@ -38,7 +20,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
+import ChatMessages from './components/ChatMessages.vue';
+import ChatControls from './components/ChatControls.vue';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
@@ -46,7 +30,6 @@ const messages = ref([]);
 const inputText = ref('');
 const streaming = ref(false);
 const error = ref('');
-const inputRef = ref(null);
 let evtSource = null;
 
 function append(role, content) {
@@ -149,6 +132,10 @@ async function send() {
     streaming.value = false;
     evtSource.close && evtSource.close();
   };
+  evtSource.ondone = () => {
+    streaming.value = false;
+    evtSource.close && evtSource.close();
+  };
   evtSource.on('done', () => {
     streaming.value = false;
     evtSource.close && evtSource.close();
@@ -159,10 +146,4 @@ function stop() {
   if (evtSource && evtSource.close) evtSource.close();
   streaming.value = false;
 }
-
-onMounted(() => {
-  if (inputRef.value) {
-    inputRef.value.focus();
-  }
-});
 </script>

@@ -128,6 +128,7 @@ curl -N -X POST http://localhost:3000/api/chat \
 - Вынес стили фронта в отдельный файл styles.css.
 - Перевел проект на сборщик Vite (создал полноценную структуру со сборкой и App.vue)
 - Перенес стили в src и перевел на формат SCSS (`src/styles.scss`)
+- Вынес секцию сообщений и форму отправки в отдельные компоненты [`ChatMessages.vue`](frontend/src/components/ChatMessages.vue) и [`ChatControls.vue`](frontend/src/components/ChatControls.vue)
 
 ## Дальше 
 подключить рендер Markdown, обработку ошибок по типам (429) и тесты.
