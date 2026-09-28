@@ -2,6 +2,7 @@ const express = require('express');
 const fetch = require('node-fetch');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 
 require('dotenv').config();
 
@@ -73,7 +74,9 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-app.use('/', express.static(path.join(__dirname, '..', 'frontend')));
+const distPath = path.join(__dirname, '..', 'frontend', 'dist');
+const staticPath = fs.existsSync(distPath) ? distPath : path.join(__dirname, '..', 'frontend');
+app.use('/', express.static(staticPath));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
