@@ -2,8 +2,8 @@
   <section class="messages" tabindex="0" aria-live="polite">
     <div class="empty" v-if="messages.length === 0" />
     <div v-for="(m, idx) in messages" :key="idx" class="msg">
-      <div :class="m.role === 'user' ? 'user' : 'model'">
-        <strong>{{ m.role === 'user' ? 'Вы' : 'Модель' }}:</strong>
+      <div :class="roleIsUser(m) ? 'user' : 'model'">
+        <strong>{{ roleIsUser(m) ? 'Вы' : 'Модель' }}:</strong>
       </div>
       <div v-html="m.content"></div>
     </div>
@@ -22,4 +22,6 @@ defineProps({
     default: false
   }
 });
+
+const roleIsUser = m => m.role === 'user';
 </script>

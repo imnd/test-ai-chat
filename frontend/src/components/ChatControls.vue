@@ -54,6 +54,55 @@ function escapeHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function extractDeltaText(rawChunk) {
+  if (!rawChunk) return '';
+  if (typeof rawChunk === 'object') {
+    return rawChunk.choices?.[0]?.delta?.content || '';
+  }
+  if (typeof rawChunk !== 'string') return '';
+
+  const lines = rawChunk.split('\n');
+  let result = '';
+  let isSSE = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // Игнорируем SSE комментарии (например, ": OPENROUTER PROCESSING")
+    if (trimmed.startsWith(':')) {
+      isSSE = true;
+      continue;
+    }
+
+    if (trimmed === 'data: [DONE]') {
+      isSSE = true;
+      continue;
+    }
+
+    if (trimmed.startsWith('data:')) {
+      isSSE = true;
+      const dataStr = trimmed.slice(5).trim();
+      try {
+        const json = JSON.parse(dataStr);
+        const delta = json.choices?.[0]?.delta;
+        if (delta && typeof delta.content === 'string') {
+          result += delta.content;
+        }
+      } catch (_) {
+        result += dataStr;
+      }
+    }
+  }
+
+  // Если это обычный текст, а не SSE
+  if (!isSSE && !result) {
+    return rawChunk;
+  }
+
+  return result;
+}
+
 function EventSourcePolyfill(url, payload) {
   const controller = new AbortController();
   const es = {
@@ -148,30 +197,17 @@ async function send() {
 
   evtSource.onmessage = (e) => {
     try {
-      const chunk = JSON.parse(e.data);
-      let text = '';
-      if (typeof chunk === 'string') {
-        const lines = chunk.split('\n');
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || trimmed === 'data: [DONE]') continue;
-          if (trimmed.startsWith('data:')) {
-            try {
-              const json = JSON.parse(trimmed.replace(/^data:\s*/, ''));
-              text += json.choices?.[0]?.delta?.content || '';
-            } catch (_) {
-              text += trimmed;
-            }
-          } else {
-            text += line;
-          }
-        }
-      } else if (chunk && typeof chunk === 'object') {
-        text = chunk.choices?.[0]?.delta?.content || '';
+      let chunk = e.data;
+      try {
+        chunk = JSON.parse(e.data);
+      } catch (_) {}
+
+      const text = extractDeltaText(chunk);
+      if (text) {
+        props.messages[modelIdx].content += escapeHtml(text);
       }
-      props.messages[modelIdx].content += escapeHtml(text || (typeof chunk === 'string' ? chunk : ''));
     } catch (err) {
-      props.messages[modelIdx].content += escapeHtml(e.data || '');
+      console.error('Error parsing SSE message:', err);
     }
   };
   evtSource.onopen = () => {

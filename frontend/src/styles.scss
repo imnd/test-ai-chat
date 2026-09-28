@@ -31,6 +31,8 @@ main {
     overflow: auto;
     padding: 12px;
     border-radius: 8px;
+    white-space: pre-wrap;
+    word-break: break-word;
 
     .user {
       font-weight: 600;
