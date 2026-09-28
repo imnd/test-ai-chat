@@ -5,13 +5,16 @@
       <div :class="roleIsUser(m) ? 'user' : 'model'">
         <strong>{{ roleIsUser(m) ? 'Вы' : 'Модель' }}:</strong>
       </div>
-      <div v-html="m.content"></div>
+      <div class="msg-content" v-html="renderContent(m.content)"></div>
     </div>
     <div v-if="streaming" class="status">Модель печатает…</div>
   </section>
 </template>
 
 <script setup>
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
+
 defineProps({
   messages: {
     type: Array,
@@ -24,4 +27,15 @@ defineProps({
 });
 
 const roleIsUser = m => m.role === 'user';
+
+marked.setOptions({
+  gfm: true,
+  breaks: true
+});
+
+function renderContent(content) {
+  if (!content) return '';
+  const html = marked.parse(content);
+  return DOMPurify.sanitize(html);
+}
 </script>

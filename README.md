@@ -130,6 +130,7 @@ curl -N -X POST http://localhost:3000/api/chat \
 - Перенес стили в src и перевел на формат SCSS (`src/styles.scss`)
 - Вынес секцию сообщений и форму отправки в отдельные компоненты.
 - Перенес логику отправки и остановки генерации (`send` и `stop`) в `ChatControls.vue`
+- Подключил рендеринг Markdown (`marked` + `dompurify`) в [`ChatMessages.vue`](frontend/src/components/ChatMessages.vue) со стилизацией списков, жирного шрифта и блоков кода
 
 ## Дальше 
-подключить рендер Markdown, обработку ошибок по типам (429) и тесты.
+обработку ошибок по типам (429) и тесты.

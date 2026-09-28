@@ -181,9 +181,8 @@ function EventSourcePolyfill(url, payload) {
 }
 
 async function send() {
-  if (!inputText.value.trim()) return;
-  append('user', escapeHtml(inputText.value));
   const userMsg = inputText.value;
+  append('user', userMsg);
   inputText.value = '';
   error.value = '';
 
@@ -204,7 +203,7 @@ async function send() {
 
       const text = extractDeltaText(chunk);
       if (text) {
-        props.messages[modelIdx].content += escapeHtml(text);
+        props.messages[modelIdx].content += text;
       }
     } catch (err) {
       console.error('Error parsing SSE message:', err);
