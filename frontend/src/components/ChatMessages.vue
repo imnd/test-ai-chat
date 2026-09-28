@@ -7,15 +7,20 @@
       </div>
       <div class="msg-content" v-html="renderContent(m.content)"></div>
     </div>
-    <div v-if="streaming" class="status">Модель печатает…</div>
+    <div v-if="streaming" class="status-indicator">
+      <span class="status-dot"></span>
+      <span v-if="isConnecting">Соединение с сервером…</span>
+      <span v-else>Модель печатает…</span>
+    </div>
   </section>
 </template>
 
 <script setup>
+import { computed } from 'vue';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
-defineProps({
+const props = defineProps({
   messages: {
     type: Array,
     required: true
@@ -27,6 +32,13 @@ defineProps({
 });
 
 const roleIsUser = m => m.role === 'user';
+
+const isConnecting = computed(() => {
+  if (!props.streaming) return false;
+  if (!props.messages.length) return true;
+  const lastMsg = props.messages[props.messages.length - 1];
+  return lastMsg.role === 'model' && !lastMsg.content;
+});
 
 marked.setOptions({
   gfm: true,

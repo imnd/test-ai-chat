@@ -28,6 +28,7 @@
     </header>
 
     <ChatControls
+      ref="controlsRef"
       :messages="messages"
       v-model:streaming="streaming"
       v-model:error="error"
@@ -38,20 +39,28 @@
       :streaming="streaming"
     />
 
-    <footer class="status">
-      <span v-if="error" class="error-text">{{ error }}</span>
+    <footer v-if="error" class="status-footer" role="alert" aria-live="assertive">
+      <div class="error-banner">
+        <svg class="error-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span class="error-text">{{ error }}</span>
+      </div>
     </footer>
   </main>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import ChatMessages from './components/ChatMessages.vue';
 import ChatControls from './components/ChatControls.vue';
 
 const messages = ref([]);
 const streaming = ref(false);
 const error = ref('');
+const controlsRef = ref(null);
 
 const isDark = ref(false);
 
@@ -72,7 +81,15 @@ function toggleTheme() {
   } catch (_) {}
 }
 
+function handleGlobalKeydown(e) {
+  if (e.key === 'Escape' && streaming.value) {
+    controlsRef.value?.stop();
+  }
+}
+
 onMounted(() => {
+  window.addEventListener('keydown', handleGlobalKeydown);
+
   try {
     const saved = localStorage.getItem('theme');
     if (saved) {
@@ -86,5 +103,9 @@ onMounted(() => {
   } else {
     applyTheme(false);
   }
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalKeydown);
 });
 </script>

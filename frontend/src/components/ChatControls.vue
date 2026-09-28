@@ -103,8 +103,62 @@ function extractDeltaText(rawChunk) {
   return result;
 }
 
+const TIMEOUT_MS = 30000; // 30 секунд таймаут ожидания
+
+function formatErrorMessage(err, status) {
+  if (!err && !status) return 'Неизвестная ошибка';
+  const errMsg = (typeof err === 'string' ? err : err?.message || '').trim();
+
+  // 1. Таймаут
+  if (errMsg === 'TIMEOUT' || errMsg.includes('таймаут') || errMsg.includes('timeout')) {
+    return 'Превышено время ожидания ответа (таймаут 30 сек). Сервер или модель не отвечают.';
+  }
+
+  // 2. Лимит запросов 429
+  if (
+    status === 429 ||
+    errMsg.includes('429') ||
+    errMsg.toLowerCase().includes('rate limit') ||
+    errMsg.toLowerCase().includes('too many requests')
+  ) {
+    return 'Превышен лимит запросов к бесплатной модели (429 Too Many Requests). Пожалуйста, подождите немного перед следующим запросом.';
+  }
+
+  // 3. Авторизация 401
+  if (status === 401 || errMsg.includes('401') || errMsg.toLowerCase().includes('unauthorized')) {
+    return 'Ошибка авторизации API ключа (401 Unauthorized). Проверьте ключ в файле .env на сервере.';
+  }
+
+  // 4. Оплата/Квота 402
+  if (status === 402 || errMsg.includes('402') || errMsg.toLowerCase().includes('payment required')) {
+    return 'Недостаточно средств или исчерпана квота на OpenRouter (402 Payment Required).';
+  }
+
+  // 5. Ошибки сервера 5xx
+  if ((status >= 500 && status < 600) || errMsg.includes('500') || errMsg.includes('502') || errMsg.includes('503')) {
+    return `Сервер модели временно недоступен (код ${status || 500}). Попробуйте позже.`;
+  }
+
+  // 6. Ошибки сети и недоступность сервера
+  if (
+    err?.name === 'TypeError' ||
+    errMsg.toLowerCase().includes('failed to fetch') ||
+    errMsg.toLowerCase().includes('networkerror') ||
+    errMsg.toLowerCase().includes('network request failed') ||
+    errMsg.toLowerCase().includes('connection refused')
+  ) {
+    return 'Обрыв сети или сервер недоступен. Проверьте подключение к интернету.';
+  }
+
+  return errMsg || 'Произошла непредвиденная ошибка при обращении к серверу.';
+}
+
 function EventSourcePolyfill(url, payload) {
   const controller = new AbortController();
+  let isManualStop = false;
+  let isTimedOut = false;
+  let timeoutTimer = null;
+
   const es = {
     onmessage: null,
     onerror: null,
@@ -116,6 +170,27 @@ function EventSourcePolyfill(url, payload) {
     es._events[name] = fn;
   };
 
+  function resetTimeout() {
+    if (timeoutTimer) clearTimeout(timeoutTimer);
+    timeoutTimer = setTimeout(() => {
+      isTimedOut = true;
+      controller.abort();
+      if (!isManualStop) {
+        es.onerror && es.onerror(new Error('TIMEOUT'));
+      }
+    }, TIMEOUT_MS);
+  }
+
+  function stopTimeout() {
+    if (timeoutTimer) {
+      clearTimeout(timeoutTimer);
+      timeoutTimer = null;
+    }
+  }
+
+  // Запуск таймаута ожидания (30 секунд)
+  resetTimeout();
+
   fetch(url, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -124,17 +199,23 @@ function EventSourcePolyfill(url, payload) {
   })
       .then(async (resp) => {
         if (!resp.ok) {
-          let errorMsg = 'Ошибка сервера ' + resp.status;
+          stopTimeout();
+          let errorDetail = '';
           try {
             const body = await resp.json();
-            errorMsg = body.error?.message || body.error || errorMsg;
+            errorDetail = body.error?.message || body.error || '';
+            if (typeof errorDetail === 'object') {
+              errorDetail = JSON.stringify(errorDetail);
+            }
           } catch (_) {
             try {
-              errorMsg = await resp.text();
+              errorDetail = await resp.text();
             } catch (_) {}
           }
-          throw new Error(errorMsg);
+          const formatted = formatErrorMessage(new Error(errorDetail), resp.status);
+          throw new Error(formatted);
         }
+
         const reader = resp.body.getReader();
         const decoder = new TextDecoder();
         let buf = '';
@@ -145,9 +226,14 @@ function EventSourcePolyfill(url, payload) {
               .read()
               .then(({done, value}) => {
                 if (done) {
+                  stopTimeout();
                   es._events['done'] && es._events['done']();
                   return;
                 }
+
+                // Сброс таймаута при активности потока данных
+                resetTimeout();
+
                 buf += decoder.decode(value, {stream: true});
                 const parts = buf.split('\n\n');
                 buf = parts.pop();
@@ -156,8 +242,23 @@ function EventSourcePolyfill(url, payload) {
                     const ev = p.split('\n')[0].slice(6).trim();
                     const dline = p.split('\n').slice(1).join('\n');
                     const data = dline.replace(/^data:\s*/, '');
-                    if (ev === 'done') es._events['done'] && es._events['done']();
-                    else if (es['on' + ev]) es['on' + ev](data);
+                    if (ev === 'done') {
+                      stopTimeout();
+                      es._events['done'] && es._events['done']();
+                    } else if (ev === 'error') {
+                      stopTimeout();
+                      let raw = data;
+                      try {
+                        raw = JSON.parse(data);
+                      } catch (_) {}
+                      const friendlyMsg = formatErrorMessage(
+                        new Error(typeof raw === 'string' ? raw : JSON.stringify(raw)),
+                        null
+                      );
+                      es.onerror && es.onerror(new Error(friendlyMsg));
+                    } else if (es['on' + ev]) {
+                      es['on' + ev](data);
+                    }
                     continue;
                   }
                   const m = p.replace(/^data:\s*/, '');
@@ -166,17 +267,28 @@ function EventSourcePolyfill(url, payload) {
                 read();
               })
               .catch((err) => {
-                es.onerror && es.onerror(err);
+                stopTimeout();
+                if (isManualStop || err.name === 'AbortError') return;
+                const friendlyMsg = formatErrorMessage(err, null);
+                es.onerror && es.onerror(new Error(friendlyMsg));
               });
         }
 
         read();
       })
       .catch((err) => {
-        es.onerror && es.onerror(err);
+        stopTimeout();
+        if (isManualStop || err.name === 'AbortError') return;
+        const friendlyMsg = formatErrorMessage(err, null);
+        es.onerror && es.onerror(new Error(friendlyMsg));
       });
 
-  es.close = () => controller.abort();
+  es.close = () => {
+    isManualStop = true;
+    stopTimeout();
+    controller.abort();
+  };
+
   return es;
 }
 
@@ -221,6 +333,14 @@ async function send() {
   evtSource.onopen = () => {
   };
   evtSource.onerror = (ev) => {
+    // Если модель ничего не успела сгенерировать, убираем пустой блок
+    if (props.messages.length > 0) {
+      const last = props.messages[props.messages.length - 1];
+      if (last.role === 'model' && !last.content) {
+        props.messages.pop();
+      }
+    }
+
     error.value = (ev && ev.message) ? ev.message : 'Ошибка сети или сервер недоступен.';
     streaming.value = false;
     evtSource.close && evtSource.close();
@@ -240,6 +360,15 @@ async function send() {
 function stop() {
   if (evtSource && evtSource.close) evtSource.close();
   streaming.value = false;
+
+  // Если модель не успела вывести ни одного токена при нажатии Стоп, убираем пустое сообщение
+  if (props.messages.length > 0) {
+    const last = props.messages[props.messages.length - 1];
+    if (last.role === 'model' && !last.content) {
+      props.messages.pop();
+    }
+  }
+
   emit('stop');
 }
 
