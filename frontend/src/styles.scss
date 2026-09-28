@@ -1,5 +1,62 @@
 :root {
-  font-family: system-ui, Segoe UI, Roboto, Arial;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: light dark;
+
+  // Светлая тема
+  --bg-color: #f8fafc;
+  --surface-color: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --border-color: #e2e8f0;
+  --msg-user-bg: #f1f5f9;
+  --msg-model-bg: #ffffff;
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+  --input-focus: #2563eb;
+  --btn-primary-bg: #2563eb;
+  --btn-primary-hover: #1d4ed8;
+  --btn-primary-text: #ffffff;
+  --btn-stop-bg: #ef4444;
+  --btn-stop-hover: #dc2626;
+  --btn-stop-text: #ffffff;
+  --code-bg: #f1f5f9;
+  --pre-bg: #f8fafc;
+  --pre-border: #e2e8f0;
+  --status-error: #ef4444;
+  --toggle-bg: #e2e8f0;
+  --toggle-hover: #cbd5e1;
+  --toggle-text: #334155;
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  // Тёмная тема
+  --bg-color: #0b0f19;
+  --surface-color: #111827;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --border-color: #002054;
+  --msg-user-bg: #1e293b;
+  --msg-model-bg: #111827;
+  --input-bg: #0f172a;
+  --input-border: #334155;
+  --input-focus: #3b82f6;
+  --btn-primary-bg: #003489;
+  --btn-primary-hover: #07318d;
+  --btn-primary-text: #ffffff;
+  --btn-stop-bg: #ef4444;
+  --btn-stop-hover: #dc2626;
+  --btn-stop-text: #ffffff;
+  --code-bg: #1e293b;
+  --pre-bg: #0f172a;
+  --pre-border: #1e293b;
+  --status-error: #f87171;
+  --toggle-bg: #1e293b;
+  --toggle-hover: #334155;
+  --toggle-text: #cbd5e1;
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 body {
@@ -8,6 +65,9 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 main {
@@ -16,43 +76,106 @@ main {
   flex-direction: column;
   padding: 16px;
   gap: 12px;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
 
   @media (max-width: 600px) {
     padding: 8px;
   }
 }
 
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 4px;
+
+  h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    background-color: var(--toggle-bg);
+    color: var(--toggle-text);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+
+    &:hover {
+      background-color: var(--toggle-hover);
+    }
+
+    &:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px var(--input-focus);
+    }
+
+    .theme-icon {
+      font-size: 14px;
+    }
+  }
+}
+
 .messages {
   flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+
+  .empty {
+    color: var(--text-secondary);
+    font-size: 14px;
+    text-align: center;
+    padding: 32px 16px;
+  }
 
   .msg {
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-color);
+    background-color: var(--surface-color);
+    box-shadow: var(--card-shadow);
     margin-bottom: 12px;
-    overflow: auto;
-    padding: 12px;
+    padding: 14px;
     border-radius: 8px;
     word-break: break-word;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
 
     .user {
       font-weight: 600;
-      margin-bottom: 4px;
+      color: var(--text-primary);
+      margin-bottom: 6px;
     }
 
     .model {
-      margin-bottom: 4px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 6px;
     }
 
     .msg-content {
-      line-height: 1.5;
+      line-height: 1.6;
+      color: var(--text-primary);
 
       p {
         margin: 0 0 8px 0;
+
         &:last-child {
           margin-bottom: 0;
         }
       }
 
-      ul, ol {
+      ul,
+      ol {
         margin: 4px 0 8px 0;
         padding-left: 20px;
       }
@@ -62,16 +185,18 @@ main {
       }
 
       code {
-        background: #f0f0f0;
-        padding: 2px 4px;
+        background: var(--code-bg);
+        color: var(--text-primary);
+        padding: 2px 5px;
         border-radius: 4px;
         font-size: 0.9em;
-        font-family: monospace;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       }
 
       pre {
-        background: #f6f8fa;
-        padding: 10px;
+        background: var(--pre-bg);
+        border: 1px solid var(--pre-border);
+        padding: 12px;
         border-radius: 6px;
         overflow-x: auto;
         margin: 8px 0;
@@ -83,10 +208,10 @@ main {
       }
 
       blockquote {
-        border-left: 3px solid #ccc;
+        border-left: 3px solid var(--input-focus);
         margin: 8px 0;
-        padding-left: 10px;
-        color: #555;
+        padding-left: 12px;
+        color: var(--text-secondary);
       }
     }
   }
@@ -98,35 +223,67 @@ main {
 
   textarea.prompt {
     flex: 1;
-    padding: 8px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--input-border);
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 14px;
+    resize: vertical;
+    min-height: 48px;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
 
     &:focus {
       outline: none;
+      border-color: var(--input-focus);
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
     }
   }
 
   button {
-    padding: 8px 12px;
-    border-radius: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
     border: 0;
-    background: #0366d6;
-    color: #fff;
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+    font-weight: 500;
     cursor: pointer;
+    transition: background-color 0.2s ease, opacity 0.2s ease;
+
+    &:hover:not(:disabled) {
+      background: var(--btn-primary-hover);
+    }
 
     &:focus {
       outline: none;
+      box-shadow: 0 0 0 2px var(--input-focus);
     }
 
     &:disabled {
-      opacity: 0.6;
+      opacity: 0.5;
       cursor: not-allowed;
+    }
+
+    &[type="button"] {
+      background: var(--toggle-bg);
+      color: var(--toggle-text);
+
+      &:hover:not(:disabled) {
+        background: var(--btn-stop-bg);
+        color: var(--btn-stop-text);
+      }
     }
   }
 }
 
 .status {
   font-size: 13px;
-  color: #666;
+  color: var(--text-secondary);
+
+  .error-text {
+    color: var(--status-error);
+    font-weight: 500;
+  }
 }

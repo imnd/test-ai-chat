@@ -1,6 +1,6 @@
 <template>
   <section class="messages" tabindex="0" aria-live="polite">
-    <div class="empty" v-if="messages.length === 0" />
+    <div class="empty" v-if="messages.length === 0">Напишите сообщение — и модель ответит.</div>
     <div v-for="(m, idx) in messages" :key="idx" class="msg">
       <div :class="roleIsUser(m) ? 'user' : 'model'">
         <strong>{{ roleIsUser(m) ? 'Вы' : 'Модель' }}:</strong>
