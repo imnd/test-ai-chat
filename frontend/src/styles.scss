@@ -24,13 +24,13 @@ main {
 
 .messages {
   flex: 1;
-  overflow: auto;
-  border: 1px solid #ddd;
-  padding: 12px;
-  border-radius: 8px;
 
   .msg {
+    border: 1px solid #ddd;
     margin-bottom: 12px;
+    overflow: auto;
+    padding: 12px;
+    border-radius: 8px;
 
     .user {
       font-weight: 600;
@@ -42,7 +42,7 @@ main {
   display: flex;
   gap: 8px;
 
-  input[type="text"] {
+  textarea.prompt {
     flex: 1;
     padding: 8px;
     border-radius: 6px;

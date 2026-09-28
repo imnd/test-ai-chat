@@ -57,10 +57,10 @@ npm run serve
 - **Стек**: Node.js, Express, `node-fetch`, `cors`, `dotenv`.
 - **Переменные окружения**:
   - `OPENROUTER_API_KEY` (обязательно) — ключ API для авторизации в OpenRouter.
-  - `OPENROUTER_URL` (опционально, по умолчанию `https://api.openrouter.ai/v1/chat/completions`) — адрес эндпоинта OpenRouter.
-  - `DEFAULT_MODEL` (опционально, по умолчанию `gpt-4o-mini:free`) — модель по умолчанию.
+  - `OPENROUTER_URL` (опционально, по умолчанию `https://openrouter.ai/api/v1/chat/completions`) — адрес эндпоинта OpenRouter.
+  - `DEFAULT_MODEL` (опционально, по умолчанию `openrouter/free`) — модель по умолчанию.
   - `PORT` (опционально, по умолчанию `3000`) — порт запуска сервера.
-- **Поддержка прерывания (AbortController)**: при отключении клиента (`req.on('close')`) сервер отменяет исходящий запрос к OpenRouter, предотвращая лишний расход токенов.
+- **Поддержка прерывания (AbortController)**: при отключении клиента (`res.on('close')`) сервер отменяет исходящий запрос к OpenRouter, предотвращая лишний расход токенов.
 
 ---
 

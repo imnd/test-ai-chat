@@ -10,9 +10,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const OPENROUTER_URL = process.env.OPENROUTER_URL || 'https://api.openrouter.ai/v1/chat/completions';
+const OPENROUTER_URL = process.env.OPENROUTER_URL || 'https://openrouter.ai/api/v1/chat/completions';
 const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
-const DEFAULT_MODEL = process.env.DEFAULT_MODEL || 'gpt-4o-mini:free';
+const DEFAULT_MODEL = process.env.DEFAULT_MODEL || 'openrouter/free';
 
 if (!OPENROUTER_KEY) {
   console.warn('OPENROUTER_API_KEY not set — server will error on requests');
@@ -24,7 +24,11 @@ app.post('/api/chat', async (req, res) => {
   if (!messages) return res.status(400).json({ error: 'messages required' });
 
   const controller = new AbortController();
-  req.on('close', () => controller.abort());
+  res.on('close', () => {
+    if (!res.writableEnded) {
+      controller.abort();
+    }
+  });
 
   try {
     const upstream = await fetch(OPENROUTER_URL, {

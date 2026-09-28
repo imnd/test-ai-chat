@@ -4,15 +4,15 @@
       <h1>AI Chat</h1>
     </header>
 
-    <ChatMessages
-      :messages="messages"
-      :streaming="streaming"
-    />
-
     <ChatControls
       :messages="messages"
       v-model:streaming="streaming"
       v-model:error="error"
+    />
+
+    <ChatMessages
+      :messages="messages"
+      :streaming="streaming"
     />
 
     <footer class="status">
